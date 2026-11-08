@@ -1,0 +1,13 @@
+{
+  "name": "apex-health-probe",
+  "version": "1.0.0",
+  "description": "Low-cost high-speed gateway health probe for real x402 settlement validation checks.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "axios": "^1.7.2"
+  }
+}
