@@ -3,8 +3,8 @@
 Low-cost high-speed gateway health probe for real-time x402 payment settlement validation checks. Explicitly optimized to minimize latency and provide instant loop benchmarks for autonomous Web3 AI agents.
 
 ## ⚡ Live API Endpoints
-* **Production Route:** https://onrender.com
-* **OpenAPI 3.0 Blueprint:** https://onrender.com/openapi.json
+* **Production Route:** https://apex-health-probe.onrender.com/
+* **OpenAPI 3.0 Blueprint:** https://apex-health-probe.onrender.com/openapi.json
 
 ## 🔒 vAPI Protocol Conformance
 * **Network:** Base Mainnet (eip155:8453)
