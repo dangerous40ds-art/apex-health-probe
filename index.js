@@ -4,7 +4,7 @@ const app = express();
 
 app.use(express.json());
 
-// 🛡️ Required CORS Middleware to satisfy strict Web3 Agent Console Origin Rules
+// Required CORS Middleware for Web3 Agent Console
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -19,10 +19,9 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT || 10000;
 const MY_BASE_WALLET = process.env.MY_BASE_WALLET || "0x452993071FdE3743767f98f339E90D9A313BBf3B";
-const API_AMOUNT_PER_CALL = process.env.API_AMOUNT_PER_CALL || "1000"; // 1000 atomic units = 0.001 USDC
+const API_AMOUNT_PER_CALL = process.env.API_AMOUNT_PER_CALL || "1000";
 const BASE_NETWORK_ID = "8453";
 
-// Generate fully compliant x402 v2 offer nesting the exact bazaar and extra domain schemas from foundation specs
 const generate402Offer = (baseUrl, routePath) => ({
     x402Version: 2,
     error: "Payment required",
@@ -35,7 +34,7 @@ const generate402Offer = (baseUrl, routePath) => ({
         scheme: "exact",
         network: `eip155:${BASE_NETWORK_ID}`,
         amount: API_AMOUNT_PER_CALL,
-        asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913", // Canonical USDC on Base
+        asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913",
         payTo: MY_BASE_WALLET,
         maxTimeoutSeconds: 30,
         extra: {
@@ -56,9 +55,7 @@ const generate402Offer = (baseUrl, routePath) => ({
                 input: {
                     type: "http",
                     method: "GET",
-                    queryParams: {
-                        ping: "test"
-                    }
+                    queryParams: { ping: "test" }
                 },
                 output: {
                     type: "json",
@@ -83,36 +80,12 @@ const generate402Offer = (baseUrl, routePath) => ({
     }
 });
 
-// 🟢 Free Path: Used by Cron-Job.org to bypass firewalls and keep container awake
-app.get('/keepawake', (req, res) => {
-    res.status(200).json({ status: "warm", message: "Keep-awake monitor loop successful." });
-});
-
-// 🔒 Protected OpenAPI Route: Locked behind a strict 402 challenge to pass vAPI console checks
-app.get('/openapi.json', (req, res) => {
-    const paymentSignature = req.headers['payment-signature'];
-    const hostUrl = `${req.protocol}://${req.get('host')}`;
-    const offerPayload = generate402Offer(hostUrl, '/openapi.json');
-
-    if (!paymentSignature) {
-        const base64Offer = Buffer.from(JSON.stringify(offerPayload)).toString('base64');
-        res.setHeader('PAYMENT-REQUIRED', base64Offer);
-        return res.status(402).json(offerPayload);
-    }
-    
-    res.status(200).json({
-        openapi: "3.0.0",
-        info: { title: "Apex Universal Uptime Diagnostic Probe", version: "1.0.0" },
-        paths: { "/": { get: { summary: "Execute raw network loop verification test" } } }
-    });
-});
-
-// 🔒 Core Data Route: Protected via x402 EIP-712 signature verification logic
-app.get('/', async (req, res) => {
+// Shared handler so both / and /openapi.json return live health diagnostics once paid
+const handleHealthProbe = async (req, res, routePath) => {
     const startTime = Date.now();
     const paymentSignature = req.headers['payment-signature'];
     const hostUrl = `${req.protocol}://${req.get('host')}`;
-    const offerPayload = generate402Offer(hostUrl, '/');
+    const offerPayload = generate402Offer(hostUrl, routePath);
 
     if (!paymentSignature) {
         const base64Offer = Buffer.from(JSON.stringify(offerPayload)).toString('base64');
@@ -131,7 +104,6 @@ app.get('/', async (req, res) => {
         return res.status(500).json({ error: "Payment verification engine offline." });
     }
 
-    // Ultra-fast immediate response payload to minimize latency metric footprint
     res.status(200).json({
         status: "success",
         message: "Gateway operational. Protocol check verified.",
@@ -139,7 +111,16 @@ app.get('/', async (req, res) => {
         latency_ms: Date.now() - startTime,
         timestamp: Date.now()
     });
+};
+
+// Free Path for Cron-Job.org
+app.get('/keepawake', (req, res) => {
+    res.status(200).json({ status: "warm", message: "Keep-awake monitor loop successful." });
 });
+
+// Both endpoints now return real diagnostic metrics once paid
+app.get('/openapi.json', (req, res) => handleHealthProbe(req, res, '/openapi.json'));
+app.get('/', (req, res) => handleHealthProbe(req, res, '/'));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Apex Health Probe active on port ${PORT}`);
